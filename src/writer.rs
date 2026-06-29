@@ -1,20 +1,27 @@
-use crate::format::{FileFooter, FileEntry, OXARC_MAGIC, OXARC_VERSION};
+use crate::format::{ArchiveFooter, ArchiveHeader, FileEntry};
 use std::fs::File;
 use std::io::{self, BufWriter, Seek, Write};
 use std::path::Path;
 
 pub struct ArchiveWriter {
     writer: BufWriter<File>,
-    index : Vec<FileEntry>
+    index: Vec<FileEntry>,
+    index_size: u64,
 }
 
 impl ArchiveWriter {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, io::Error> {
         let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+
+        let header = ArchiveHeader::new();
+
+        writer.write(&header.as_bytes())?;
 
         Ok(Self {
-            writer: BufWriter::new(file),
-            index : Vec::new()
+            writer: writer,
+            index: Vec::new(),
+            index_size: 0,
         })
     }
 
@@ -36,9 +43,11 @@ impl ArchiveWriter {
 
     pub fn write_file_index(&mut self) -> Result<(), io::Error> {
         for item in &self.index {
-            self.writer.write_all(&item.as_bytes())?;
+            let index = item.as_bytes();
+            self.index_size += index.len() as u64;
+
+            self.writer.write_all(&index)?;
         }
-        
 
         Ok(())
     }
@@ -48,11 +57,7 @@ impl ArchiveWriter {
 
         self.write_file_index()?;
 
-        let footer = FileFooter {
-            magic: OXARC_MAGIC,
-            version: OXARC_VERSION,
-            index_offset,
-        };
+        let footer = ArchiveFooter::new(index_offset, self.index_size);
 
         self.writer.write_all(&footer.as_bytes())?;
         self.writer.flush()?;

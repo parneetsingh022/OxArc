@@ -1,10 +1,8 @@
-pub mod writer;
 pub mod format;
+pub mod writer;
 
 use std::{
-    env,
-    fs,
-    io,
+    env, fs, io,
     path::{Path, PathBuf},
 };
 

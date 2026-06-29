@@ -1,19 +1,31 @@
 use std::path::Path;
 
-pub const OXARC_MAGIC: [u8; 4] = *b"OXAR";
-pub const OXARC_VERSION: u32 = 1;
+pub const OXARC_HEADER_MAGIC: [u8; 4] = *b"OXA!";
+pub const OXARC_FOOTER_MAGIC: [u8; 4] = *b"OXAE";
+pub const OXARC_VERSION: u16 = 1;
 
-pub struct FileFooter {
+pub struct ArchiveHeader {
     // 4-byte magic number to identify OxArc-file
-    pub magic: [u8; 4],
-    pub version: u32,
-    pub index_offset: u64,
+    pub magic: [u8; 4], // 4 bytes
+    pub version: u16,   // 4 bytes
+
+    /// Reserved for future use.
+    /// This makes a fixed 32-byte header.
+    pub reserved: [u8; 26], // 26 bytes
 }
 
-impl FileFooter {
-    pub const SIZE: usize = 4 + 4 + 8;
+impl ArchiveHeader {
+    pub const SIZE: usize = 32;
 
-    pub fn as_zero_bytes(&self) -> [u8; Self::SIZE] {
+    pub fn new() -> Self {
+        Self {
+            magic: OXARC_HEADER_MAGIC,
+            version: OXARC_VERSION,
+            reserved: [0u8; 26],
+        }
+    }
+
+    pub fn as_zero_bytes() -> [u8; Self::SIZE] {
         let bytes = [0u8; Self::SIZE];
 
         bytes
@@ -22,8 +34,45 @@ impl FileFooter {
     pub fn as_bytes(&self) -> [u8; Self::SIZE] {
         let mut bytes = [0u8; Self::SIZE];
         bytes[0..4].copy_from_slice(&self.magic);
-        bytes[4..8].copy_from_slice(&self.version.to_le_bytes()); // Explicit Little-Endian
-        bytes[8..16].copy_from_slice(&self.index_offset.to_le_bytes()); // Explicit Little-Endian
+        bytes[4..6].copy_from_slice(&self.version.to_le_bytes());
+        bytes[6..32].copy_from_slice(&self.reserved);
+        bytes
+    }
+}
+
+pub struct ArchiveFooter {
+    pub magic: [u8; 4], // 4 bytes
+
+    // Location where index table for files start.
+    pub index_offset: u64,  // 8 bytes
+    pub index_size: u64,    // 8 bytes
+    pub reserved: [u8; 12], // 12 bytes
+}
+
+impl ArchiveFooter {
+    pub const SIZE: usize = 32;
+
+    pub fn new(index_offset: u64, index_size: u64) -> Self {
+        Self {
+            magic: OXARC_FOOTER_MAGIC,
+            index_offset,
+            index_size,
+            reserved: [0u8; 12],
+        }
+    }
+
+    pub fn as_zero_bytes() -> [u8; Self::SIZE] {
+        let bytes = [0u8; Self::SIZE];
+
+        bytes
+    }
+
+    pub fn as_bytes(&self) -> [u8; Self::SIZE] {
+        let mut bytes = [0u8; Self::SIZE];
+        bytes[0..4].copy_from_slice(&self.magic); // 4 byte magic
+        bytes[4..12].copy_from_slice(&self.index_offset.to_le_bytes()); // 8 byte index offset
+        bytes[12..20].copy_from_slice(&self.index_size.to_le_bytes()); // 8 byte index size
+        bytes[20..32].copy_from_slice(&self.reserved); // 12 reserved bytes
         bytes
     }
 }
@@ -47,11 +96,7 @@ impl FileEntry {
             + Self::OFFSET_BYTES
     }
 
-    pub fn new(
-        path: impl AsRef<Path>,
-        uncompressed_size: u64,
-        offset: u64,
-    ) -> Self {
+    pub fn new(path: impl AsRef<Path>, uncompressed_size: u64, offset: u64) -> Self {
         let path_str = path.as_ref().to_string_lossy().to_string();
         let path_size = path_str.as_bytes().len();
 
@@ -67,7 +112,7 @@ impl FileEntry {
             offset,
         }
     }
-    
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(self.serialized_size());
 
@@ -78,4 +123,4 @@ impl FileEntry {
 
         bytes
     }
-} 
+}
