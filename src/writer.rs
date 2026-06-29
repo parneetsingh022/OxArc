@@ -48,13 +48,13 @@ impl ArchiveWriter {
 
         self.write_file_index()?;
 
-        let header = FileFooter {
+        let footer = FileFooter {
             magic: OXARC_MAGIC,
             version: OXARC_VERSION,
             index_offset,
         };
 
-        self.writer.write_all(&header.as_bytes())?;
+        self.writer.write_all(&footer.as_bytes())?;
         self.writer.flush()?;
 
         Ok(())

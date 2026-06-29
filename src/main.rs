@@ -1,4 +1,4 @@
-pub mod arcwriter;
+pub mod writer;
 pub mod format;
 
 use std::{
@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::arcwriter::ArchiveWriter;
+use crate::writer::ArchiveWriter;
 
 fn main() -> Result<(), io::Error> {
     let args: Vec<String> = env::args().collect();
