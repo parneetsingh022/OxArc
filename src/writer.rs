@@ -41,7 +41,7 @@ impl ArchiveWriter {
         Ok(())
     }
 
-    pub fn write_file_index(&mut self) -> Result<(), io::Error> {
+    fn write_file_index(&mut self) -> Result<(), io::Error> {
         for item in &self.index {
             let index = item.as_bytes();
             self.index_size += index.len() as u64;
