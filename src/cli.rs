@@ -69,13 +69,12 @@ impl PackArgs {
                 format!("failed to add file to archive: '{}'", file_path.display())
             })?;
 
-            arc_writer.finish()?;
-
             file_count += 1;
 
             println!("a {}", file_path.display());
         }
 
+        arc_writer.finish()?;
         println!(
             "\nCreated archive '{}' with {} file{}.",
             target.display(),
