@@ -1,30 +1,10 @@
 use anyhow::{Context, Result};
+use clap::{Args, Parser, Subcommand};
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
-
-use clap::{Args, Parser, Subcommand};
-
+use crate::utils::inferred_target;
 use crate::writer::ArchiveWriter;
-
-fn resolve_target_path<'a>(source: &'a Path, target: Option<&'a Path>) -> Result<Cow<'a, Path>> {
-    match target {
-        Some(target) => Ok(Cow::Borrowed(target)),
-        None => {
-            let file_name = source.file_name().map(Path::new).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "could not get file name from source path: '{}'",
-                    source.display()
-                )
-            })?;
-
-            Ok(Cow::Owned(file_name.with_extension("oxa")))
-        }
-    }
-}
 
 #[derive(Debug, Subcommand)]
 enum Commands {
@@ -52,8 +32,7 @@ impl PackArgs {
                 self.source.display()
             );
         }
-
-        let target = resolve_target_path(&self.source, self.target.as_deref())?;
+        let target = inferred_target(&self.source, self.target.as_deref())?;
 
         if target.exists() && !self.replace {
             anyhow::bail!(
