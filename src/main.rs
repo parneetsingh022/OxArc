@@ -5,7 +5,7 @@ pub mod writer;
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    cli::Args::run()?;
+    cli::CliArgs::run()?;
 
     Ok(())
 }

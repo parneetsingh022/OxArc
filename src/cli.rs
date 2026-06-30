@@ -6,39 +6,56 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 
 use crate::writer::ArchiveWriter;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct Args {
+fn resolve_target_path<'a>(source: &'a Path, target: Option<&'a Path>) -> Result<Cow<'a, Path>> {
+    match target {
+        Some(target) => Ok(Cow::Borrowed(target)),
+        None => {
+            let file_name = source.file_name().map(Path::new).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "could not get file name from source path: '{}'",
+                    source.display()
+                )
+            })?;
+
+            Ok(Cow::Owned(file_name.with_extension("oxa")))
+        }
+    }
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    Pack(PackArgs),
+}
+
+#[derive(Args, Debug)]
+struct PackArgs {
     source: PathBuf,
     target: Option<PathBuf>,
 
-    // Replace target if already exists
-    #[arg(long)]
+    #[arg(short, long)]
     replace: bool,
 }
 
-impl Args {
-    pub fn run() -> Result<()> {
-        let args = Self::parse();
-
-        if !args.source.exists() {
-            anyhow::bail!("source path not found: '{}'", args.source.display());
+impl PackArgs {
+    fn execute(&self) -> Result<()> {
+        if !self.source.exists() {
+            anyhow::bail!("source path not found: '{}'", self.source.display());
         }
 
-        if !args.source.is_dir() {
+        if !self.source.is_dir() {
             anyhow::bail!(
                 "expected a directory, found file: '{}'",
-                args.source.display()
+                self.source.display()
             );
         }
 
-        let target = resolve_target_path(&args.source, args.target.as_deref())?;
+        let target = resolve_target_path(&self.source, self.target.as_deref())?;
 
-        if target.exists() && !args.replace {
+        if target.exists() && !self.replace {
             anyhow::bail!(
                 "target archive already exists: '{}'\nUse --replace to overwrite the existing archive.",
                 target.display()
@@ -47,7 +64,7 @@ impl Args {
 
         let mut arc_writer = ArchiveWriter::new(&target)?;
 
-        Self::add_source_to_archive(&mut arc_writer, &args.source, &target)?;
+        Self::add_source_to_archive(&mut arc_writer, &self.source, &target)?;
 
         Ok(())
     }
@@ -91,18 +108,20 @@ impl Args {
     }
 }
 
-fn resolve_target_path<'a>(source: &'a Path, target: Option<&'a Path>) -> Result<Cow<'a, Path>> {
-    match target {
-        Some(target) => Ok(Cow::Borrowed(target)),
-        None => {
-            let file_name = source.file_name().map(Path::new).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "could not get file name from source path: '{}'",
-                    source.display()
-                )
-            })?;
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct CliArgs {
+    #[command(subcommand)]
+    commands: Commands,
+}
 
-            Ok(Cow::Owned(file_name.with_extension("oxa")))
+impl CliArgs {
+    pub fn run() -> Result<()> {
+        let args = Self::parse();
+        match args.commands {
+            Commands::Pack(cmd) => cmd.execute()?,
         }
+
+        Ok(())
     }
 }

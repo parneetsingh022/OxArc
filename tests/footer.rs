@@ -10,7 +10,7 @@ use std::{
 use tempdir::TempDir;
 
 #[test]
-fn test_magic_in_footer() -> Result<(), io::Error> {
+fn footer_default_fields() -> Result<(), io::Error> {
     let basedir = TempDir::new("basedir")?;
     let target_file = common::create_test_archive(&basedir)?;
 

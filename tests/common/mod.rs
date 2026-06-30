@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{Command, cargo::cargo_bin};
 use std::{fs, io, path::PathBuf};
 use tempdir::TempDir;
 
@@ -11,8 +11,8 @@ pub fn create_test_archive(basedir: &TempDir) -> Result<PathBuf, io::Error> {
 
     let target_file = basedir.path().join("dir.oxa");
 
-    Command::cargo_bin("oxarc")
-        .unwrap()
+    Command::new(cargo_bin!("oxarc"))
+        .arg("pack")
         .arg(&source_dir)
         .arg(&target_file)
         .assert()
